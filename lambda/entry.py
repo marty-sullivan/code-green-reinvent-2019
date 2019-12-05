@@ -8,10 +8,13 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 from boto3.session import Session
+from cartopy import config as cartoconfig
 from datetime import datetime
 from os import environ, remove
 from PIL import Image
 from pyproj import Proj
+
+cartoconfig['data_dir'] = '/tmp/'
 
 # NDFD CONUS Projection
 p = Proj('+units=m +a=6371200.0 +b=6371200.0 +lon_0=265.0 +proj=lcc +lat_2=25.0 +lat_1=25.0 +lat_0=25.0')
