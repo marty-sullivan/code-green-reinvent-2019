@@ -189,15 +189,13 @@ def create_map(event):
   fig = plt.figure(figsize=(10, 5))
   ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
   
-  # ax.contourf
-  
   # llcrnrx, llcrnry = p(min(global_lons), min(global_lats))
   # urcrnrx, urcrnry = p(max(global_lons), max(global_lats))
   
-  ax.add_feature(cfeature.LAND.with_scale('50m'))
-  ax.add_feature(cfeature.OCEAN.with_scale('50m'))
-  ax.add_feature(cfeature.LAKES.with_scale('50m'))
-  # ax.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
+  ax.add_feature(cfeature.LAND.with_scale('10m'))
+  ax.add_feature(cfeature.OCEAN.with_scale('10m'))
+  ax.add_feature(cfeature.LAKES.with_scale('10m'))
+  ax.add_feature(cfeature.ShapelyFeature(counties, ccrs.PlateCarree()), facecolor='none', edgecolor='gray')
   
   # Draw the labels and contours for each timestep in the query results and 
   # save each as a PNG image
@@ -205,7 +203,7 @@ def create_map(event):
     ax.set_title('{0} {1}'.format(desc, timestep), fontdict=dict(fontfamily='monospace'))
     
     try: 
-      levels = list(np.linspace(min_val, max_val, num=25))
+      levels = list(np.linspace(min_val, max_val, num=10))
       contours = plt.tricontourf(dataset['lons'], dataset['lats'], dataset['vals'], levels=levels, cmap=plt.cm.spring, alpha=0.5, antialiased=True, zorder=20)
       
       if not cbar:
