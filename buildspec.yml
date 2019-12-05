@@ -10,11 +10,7 @@ phases:
   
   build:
     commands:
-      - 'pip3 install -t $CODEBUILD_SRC_DIR/lambda pyproj==1.9.6 pillow'
-      - 'pip3 install -t $CODEBUILD_SRC_DIR/lambda git+https://github.com/matplotlib/basemap.git'
-      - 'rm -f $CODEBUILD_SRC_DIR/lambda/mpl_toolkits/basemap/data/*_f.*'
-      - 'rm -f $CODEBUILD_SRC_DIR/lambda/mpl_toolkits/basemap/data/*.jpg'
-      - 'sed -i "s/utf-8/latin-1/g" $CODEBUILD_SRC_DIR/lambda/shapefile.py'
+      - 'pip3 install -t $CODEBUILD_SRC_DIR/lambda pyproj==1.9.6 pillow cartopy'
   
   post_build:
     commands:

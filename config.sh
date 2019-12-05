@@ -4,7 +4,7 @@
 # IMPORTANT: Use lower case letters only!
 #
 
-STACK_NAME="ndfdforecast"
+STACK_NAME="codegreen"
 
 #
 # NDFD weather element to forecast
