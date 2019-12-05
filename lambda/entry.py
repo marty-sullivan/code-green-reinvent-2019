@@ -195,7 +195,6 @@ def create_map(event):
   ax.add_feature(cfeature.LAND.with_scale('10m'))
   ax.add_feature(cfeature.OCEAN.with_scale('10m'))
   ax.add_feature(cfeature.LAKES.with_scale('10m'))
-  ax.add_feature(cfeature.ShapelyFeature(counties, ccrs.PlateCarree()), facecolor='none', edgecolor='gray')
   
   # Draw the labels and contours for each timestep in the query results and 
   # save each as a PNG image
