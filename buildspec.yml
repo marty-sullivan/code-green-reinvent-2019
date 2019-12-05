@@ -9,6 +9,8 @@ phases:
       - 'apt-get update -y'
       - 'apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin'
       - 'pip3 install numpy'
+      - 'cp -R /usr/lib/x86_64-linux-gnu/libgeos* /usr/lib/x86_64-linux-gnu/libproj* $CODEBUILD_SRC_DIR/lambda/'
+      - 'cp /usr/bin/proj $CODEBUILD_SRC_DIR/lambda'
   
   build:
     commands:
