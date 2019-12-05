@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'Resources for Athena/Lambda Example by Marty J. Sullivan'
+
+Parameters:
+
+  CornellEasBucket:
+    Description: 'The S3 bucket containing the Cornell EAS Convience Datasets'
+    Type: 'String'
+    Default: 'cornell-eas'
+
+  GitHubRepo:
+    Type: 'String'
+    Default: 'https://github.com/marty-sullivan/code-green-reinvent-2019.git'
+
+Outputs:
+  
+  BuildBucket:
+    Value: !Sub '${BuildBucket}'
+  
+  BuildProject:
+    Value: !Sub '${BuildProject}'
+  
+Resources:
+
+  BuildBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: 'daily-cleanup'
+            Status: 'Enabled'
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+            ExpirationInDays: 1
+            NoncurrentVersionExpirationInDays: 1
+
+  BuildRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: !Sub 'codebuild.${AWS::URLSuffix}'
+            # Condition:
+            #   StringEquals:
+            #     'sts:ExternalId': !Sub '${AWS::AccountId}'
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AWSCloudFormationReadOnlyAccess'
+      Policies:
+        - PolicyName: 'build-permissions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'cloudformation:*'
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*'
+                  - !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+              - Effect: 'Allow'
+                Action:
+                  - 'athena:*'
+                  - 'events:*'
+                  - 'glue:*'
+                  - 'iam:*'
+                  - 'lambda:*'
+                  - 'logs:*'
+                  - 's3:*'
+                  - 'states:*'
+                Resource:
+                  - '*'
+  
+  BuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Artifacts:
+        Type: 'NO_ARTIFACTS'
+      ServiceRole: !Sub '${BuildRole.Arn}'
+      Source:
+        Location: !Sub '${GitHubRepo}'
+        Type: 'GITHUB'
+        GitCloneDepth: 0
+      Environment:
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/python:3.7.1'
+        Type: 'LINUX_CONTAINER'
+        EnvironmentVariables:
+          - Name: 'BUILD_BUCKET'
+            Value: !Sub '${BuildBucket}'
+          - Name: 'STACK_NAME'
+            Value: !Sub '${AWS::StackName}'

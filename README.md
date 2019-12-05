@@ -1,1 +1,1 @@
-# code-green-reinvent-2019
+# aws-athena-example

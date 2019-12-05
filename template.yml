@@ -1,0 +1,233 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'Resources for Athena/Lambda Example by Marty J. Sullivan'
+
+Parameters:
+
+  CornellEasBucket:
+    Description: 'The S3 bucket containing the Cornell EAS Convience Datasets'
+    Type: 'String'
+    Default: 'cornell-eas'
+
+  GitHubRepo:
+    Type: 'String'
+    Default: 'https://github.com/marty-sullivan/code-green-reinvent-2019.git'
+
+Outputs:
+  
+  AnimationUri:
+    Value: !Sub 'https://s3.amazonaws.com/${OutputBucket}/forecast.gif'
+  
+  BuildBucket:
+    Value: !Sub '${BuildBucket}'
+  
+  BuildProject:
+    Value: !Sub '${BuildProject}'
+  
+  OutputBucket:
+    Value: !Sub '${OutputBucket}'
+  
+  AthenaMachineArn:
+    Value: !Sub '${AthenaMachine}'
+  
+Globals:
+  
+  Function:
+    Handler: 'entry.lambda_handler'
+    MemorySize: 2048
+    Runtime: 'python3.7'
+    Timeout: 900
+    Environment:
+      Variables:
+        CORNELL_EAS_DATABASE: !Sub '${CornellEasStack.Outputs.CornellEasDatabase}'
+        COORDINATES_TABLE: !Sub '${CornellEasStack.Outputs.NdfdNdgdCoordinatesTable}'
+        ELEMENTS_TABLE: !Sub '${CornellEasStack.Outputs.NdfdElementsTable}'
+        LATEST_TABLE: !Sub '${CornellEasStack.Outputs.NdfdLatestTable}'
+        OUTPUT_BUCKET: !Sub '${OutputBucket}'
+
+Resources:
+  
+  OutputBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: 'daily-cleanup'
+            Status: 'Enabled'
+            Prefix: 'results/'
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+            ExpirationInDays: 1
+            NoncurrentVersionExpirationInDays: 1
+  
+  AthenaFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      CodeUri: './lambda'
+      Policies:
+        - 'AWSLambdaBasicExecutionRole'
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: 'Allow'
+              Action:
+                - 'athena:*Query*'
+                - 'glue:Get*'
+              Resource:
+                - '*'
+            - Effect: 'Allow'
+              Action: 
+                - 's3:GetBucketLocation'
+                - 's3:GetObject'
+                - 's3:ListBucket'
+                - 's3:ListBucketMultipartUploads'
+                - 's3:ListMultipartUploadParts'
+                - 's3:AbortMultipartUpload'
+                - 's3:PutObject'
+                - 's3:PutObjectAcl'
+              Resource:
+                - !Sub '${OutputBucket.Arn}'
+                - !Sub '${OutputBucket.Arn}/*'
+                - !Sub 'arn:${AWS::Partition}:s3:::${CornellEasBucket}'
+                - !Sub 'arn:${AWS::Partition}:s3:::${CornellEasBucket}/*'
+          
+  AthenaMachineRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service:
+                - !Sub 'states.${AWS::URLSuffix}'
+            Condition:
+              StringEquals:
+                'sts:ExternalId': !Sub '${AWS::AccountId}'
+      Policies:
+        - PolicyName: 'invoke-functions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'lambda:InvokeFunction'
+                Resource:
+                  - !Sub '${AthenaFunction.Arn}'
+
+  AthenaMachine:
+    Type: 'AWS::StepFunctions::StateMachine'
+    Properties:
+      RoleArn: !Sub '${AthenaMachineRole.Arn}'
+      DefinitionString: !Sub |-
+        {
+          "Comment": "State Machine for Athena Lambda Example by Marty J. Sullivan",
+          "StartAt": "ExecuteAthenaQuery",
+          "States": {
+            "ExecuteAthenaQuery": {
+              "Type": "Task",
+              "Resource": "${AthenaFunction.Arn}",
+              "Next": "WaitForAthenaQuery"
+            },
+            "WaitForAthenaQuery": {
+              "Type": "Wait",
+              "Seconds": 30,
+              "Next": "PlotMap"
+            },
+            "PlotMap": {
+              "Type": "Task",
+              "Resource": "${AthenaFunction.Arn}",
+              "End": true,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "QueryIncompleteException"
+                  ],
+                  "BackoffRate": 1,
+                  "IntervalSeconds": 30,
+                  "MaxAttempts": 59
+                }
+              ]
+            }
+          }
+        }
+  
+  CornellEasStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: !Sub 'https://s3.amazonaws.com/${CornellEasBucket}/metadata/cloudformation/cornell-eas-1.0.4.yml'
+      Parameters:
+        CornellEasBucket: !Sub '${CornellEasBucket}'
+        Environment: 'master'
+        GlueDatabaseSuffix: !Sub '${AWS::StackName}'
+ 
+  BuildBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: 'daily-cleanup'
+            Status: 'Enabled'
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+            ExpirationInDays: 1
+            NoncurrentVersionExpirationInDays: 1
+
+  BuildRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 'sts:AssumeRole'
+            Principal:
+              Service: !Sub 'codebuild.${AWS::URLSuffix}'
+            # Condition:
+            #   StringEquals:
+            #     'sts:ExternalId': !Sub '${AWS::AccountId}'
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AWSCloudFormationReadOnlyAccess'
+      Policies:
+        - PolicyName: 'build-permissions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'cloudformation:*'
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*'
+                  - !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+              - Effect: 'Allow'
+                Action:
+                  - 'athena:*'
+                  - 'events:*'
+                  - 'glue:*'
+                  - 'iam:*'
+                  - 'lambda:*'
+                  - 'logs:*'
+                  - 's3:*'
+                  - 'states:*'
+                Resource:
+                  - '*'
+  
+  BuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Artifacts:
+        Type: 'NO_ARTIFACTS'
+      ServiceRole: !Sub '${BuildRole.Arn}'
+      Source:
+        Location: !Sub '${GitHubRepo}'
+        Type: 'GITHUB'
+        GitCloneDepth: 0
+      Environment:
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/python:3.7.1'
+        Type: 'LINUX_CONTAINER'
+        EnvironmentVariables:
+          - Name: 'BUILD_BUCKET'
+            Value: !Sub '${BuildBucket}'
+          - Name: 'STACK_NAME'
+            Value: !Sub '${AWS::StackName}'

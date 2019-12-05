@@ -1,0 +1,22 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - 'apt-get update -y'
+      - 'apt-get install -y --no-install-recommends libgeos-dev'
+      - 'pip3 install numpy'
+      - 'cp -R /usr/lib/libgeos* $CODEBUILD_SRC_DIR/lambda'
+  
+  build:
+    commands:
+      - 'pip3 install -t $CODEBUILD_SRC_DIR/lambda pyproj==1.9.6 pillow'
+      - 'pip3 install -t $CODEBUILD_SRC_DIR/lambda git+https://github.com/matplotlib/basemap.git'
+      - 'rm -f $CODEBUILD_SRC_DIR/lambda/mpl_toolkits/basemap/data/*_f.*'
+      - 'rm -f $CODEBUILD_SRC_DIR/lambda/mpl_toolkits/basemap/data/*.jpg'
+      - 'sed -i "s/utf-8/latin-1/g" $CODEBUILD_SRC_DIR/lambda/shapefile.py'
+  
+  post_build:
+    commands:
+      - 'aws cloudformation package --template-file $CODEBUILD_SRC_DIR/template.yml --s3-bucket $BUILD_BUCKET --output-template-file $CODEBUILD_SRC_DIR/deployment.yml'
+      - 'aws cloudformation deploy --stack-name $STACK_NAME --template-file $CODEBUILD_SRC_DIR/deployment.yml --s3-bucket $BUILD_BUCKET --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides "NdfdElement=$NDFD_ELEMENT" "SquareKm=$SQUARE_KM" "CenterLatitude=$CENTER_LATITUDE" "CenterLongitude=$CENTER_LONGITUDE" "TimeZone=$TIMEZONE"'
