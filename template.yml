@@ -1,11 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: 'Resources for Athena/Lambda Example by Marty J. Sullivan'
+Description: 'Resources for Code Green Sustainability Hackathon by Marty J. Sullivan'
 
 Parameters:
 
   CornellEasBucket:
-    Description: 'The S3 bucket containing the Cornell EAS Convience Datasets'
+    Description: 'The S3 bucket containing the Cornell EAS Data Lake'
     Type: 'String'
     Default: 'cornell-eas'
 
@@ -35,7 +35,7 @@ Globals:
   Function:
     Handler: 'entry.lambda_handler'
     MemorySize: 2048
-    Runtime: 'python3.7'
+    Runtime: 'python3.8'
     Timeout: 900
     Environment:
       Variables:
@@ -224,7 +224,7 @@ Resources:
         GitCloneDepth: 0
       Environment:
         ComputeType: 'BUILD_GENERAL1_SMALL'
-        Image: 'aws/codebuild/python:3.7.1'
+        Image: 'aws/codebuild/standard:3.0'
         Type: 'LINUX_CONTAINER'
         EnvironmentVariables:
           - Name: 'BUILD_BUCKET'

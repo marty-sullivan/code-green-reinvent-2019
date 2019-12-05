@@ -2,6 +2,9 @@ version: 0.2
 
 phases:
   install:
+    runtime-versions:
+      python: 3.8
+    
     commands:
       - 'apt-get update -y'
       - 'apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin'
