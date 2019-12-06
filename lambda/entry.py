@@ -189,12 +189,12 @@ def create_map(event):
   fig = plt.figure(figsize=(10, 5))
   ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
   
-  # llcrnrx, llcrnry = p(min(global_lons), min(global_lats))
-  # urcrnrx, urcrnry = p(max(global_lons), max(global_lats))
-  
+  ax.add_feature(cfeature.BORDERS.with_scale('10m'))
+  ax.add_feature(cfeature.COASTLINE.with_scale('10m'))
+  ax.add_feature(cfeature.LAKES.with_scale('10m'))
   ax.add_feature(cfeature.LAND.with_scale('10m'))
   ax.add_feature(cfeature.OCEAN.with_scale('10m'))
-  ax.add_feature(cfeature.LAKES.with_scale('10m'))
+  ax.add_feature(cfeature.RIVERS.with_scale('10m'))
   
   # Draw the labels and contours for each timestep in the query results and 
   # save each as a PNG image

@@ -10,7 +10,7 @@ STACK_NAME="codegreen"
 # NDFD weather element to forecast
 #
 
-NDFD_ELEMENT="temp"
+NDFD_ELEMENT="sky"
 
 #
 # Square KM for the forecast map
